@@ -1,0 +1,165 @@
+erDiagram
+    %% ESPECIALIZACAO TOTAL E DISJUNTA:
+    %% Cada CLIENTE deve pertencer a exatamente um subtipo:
+    %% PESSOA_FISICA ou PESSOA_JURIDICA, nunca aos dois.
+
+    CLIENTE ||--o| PESSOA_FISICA : "subtipo PF"
+    CLIENTE ||--o| PESSOA_JURIDICA : "subtipo PJ"
+
+    CLIENTE ||--o{ ENDERECO_CLIENTE : cadastra
+    CLIENTE ||--o{ PEDIDO : realiza
+    CLIENTE ||--o{ FORMA_PAGAMENTO : possui
+
+    PEDIDO ||--|| ENDERECO_ENTREGA : preserva
+    PEDIDO ||--|{ ITEM_PEDIDO : contem
+    PRODUTO ||--o{ ITEM_PEDIDO : compoe
+
+    PEDIDO ||--o{ PAGAMENTO : recebe
+    FORMA_PAGAMENTO ||--o{ PAGAMENTO : utilizada_em
+    PAGAMENTO ||--o{ ESTORNO : pode_gerar
+
+    PEDIDO ||--o{ ENTREGA : origina
+    ITEM_PEDIDO ||--o{ DEVOLUCAO : pode_gerar
+
+    PRODUTO ||--|{ PRODUTO_FORNECEDOR : possui_vinculo
+    FORNECEDOR ||--o{ PRODUTO_FORNECEDOR : fornece
+
+    PRODUTO ||--o{ PRODUTO_ESTOQUE : armazenado_em
+    ESTOQUE ||--o{ PRODUTO_ESTOQUE : contem
+
+    CLIENTE {
+        identificador id_cliente PK
+        texto email
+        texto telefone
+        data data_cadastro
+    }
+
+    PESSOA_FISICA {
+        identificador id_cliente PK, FK
+        texto nome_completo
+        texto cpf UK
+    }
+
+    PESSOA_JURIDICA {
+        identificador id_cliente PK, FK
+        texto razao_social
+        texto nome_fantasia
+        texto cnpj UK
+    }
+
+    ENDERECO_CLIENTE {
+        identificador id_endereco_cliente PK
+        identificador id_cliente FK
+        texto logradouro
+        texto numero
+        texto complemento
+        texto bairro
+        texto cidade
+        texto uf
+        texto cep
+        texto pais
+    }
+
+    PEDIDO {
+        identificador id_pedido PK
+        identificador id_cliente FK
+        data data_pedido
+        texto status_pedido
+        decimal valor_frete_contratado
+        data data_limite_devolucao
+    }
+
+    ENDERECO_ENTREGA {
+        identificador id_endereco_entrega PK
+        identificador id_pedido FK, UK
+        texto logradouro
+        texto numero
+        texto complemento
+        texto bairro
+        texto cidade
+        texto uf
+        texto cep
+        texto pais
+    }
+
+    ITEM_PEDIDO {
+        identificador id_item_pedido PK
+        identificador id_pedido FK
+        identificador id_produto FK
+        inteiro quantidade
+        decimal preco_unitario_compra
+    }
+
+    PRODUTO {
+        identificador id_produto PK
+        texto sku UK
+        texto nome
+        texto descricao
+        decimal preco_atual
+        texto status_produto
+    }
+
+    FORNECEDOR {
+        identificador id_fornecedor PK
+        texto nome_fornecedor
+    }
+
+    PRODUTO_FORNECEDOR {
+        identificador id_produto PK, FK
+        identificador id_fornecedor PK, FK
+    }
+
+    ESTOQUE {
+        identificador id_estoque PK
+        texto nome_local
+        texto descricao_local
+    }
+
+    PRODUTO_ESTOQUE {
+        identificador id_produto PK, FK
+        identificador id_estoque PK, FK
+        inteiro quantidade
+    }
+
+    FORMA_PAGAMENTO {
+        identificador id_forma_pagamento PK
+        identificador id_cliente FK
+        texto tipo_forma_pagamento
+        texto titular
+        texto validade
+        texto identificador_seguro
+        texto ultimos_digitos
+    }
+
+    PAGAMENTO {
+        identificador id_pagamento PK
+        identificador id_pedido FK
+        identificador id_forma_pagamento FK
+        decimal valor
+        data data_pagamento
+        texto status_pagamento
+    }
+
+    ENTREGA {
+        identificador id_entrega PK
+        identificador id_pedido FK
+        texto status_entrega
+        texto codigo_rastreio
+    }
+
+    DEVOLUCAO {
+        identificador id_devolucao PK
+        identificador id_item_pedido FK
+        data data_solicitacao
+        inteiro quantidade_solicitada
+        texto status_devolucao
+    }
+
+    ESTORNO {
+        identificador id_estorno PK
+        identificador id_pagamento FK
+        data data_estorno
+        decimal valor_estornado
+        texto motivo
+        texto status_estorno
+    }
