@@ -1,14 +1,12 @@
 -- =====================================================================
--- 0) Configuração do banco
+-- PARTE A — E-COMMERCE (loja)
 -- =====================================================================
 CREATE DATABASE IF NOT EXISTS loja
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_0900_ai_ci;
 USE loja;
 
--- =====================================================================
--- 1) CLIENTE (superclasse) + especialização PF / PJ
--- =====================================================================
+-- ---------- Schema original (inalterado) ----------
 CREATE TABLE CLIENTE (
     id_cliente     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     email          VARCHAR(255)    NOT NULL,
@@ -24,9 +22,8 @@ CREATE TABLE PESSOA_FISICA (
     cpf            CHAR(11)        NOT NULL,
     PRIMARY KEY (id_cliente),
     UNIQUE KEY uk_pf_cpf (cpf),
-    CONSTRAINT fk_pf_cliente
-        FOREIGN KEY (id_cliente) REFERENCES CLIENTE (id_cliente)
-        ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT fk_pf_cliente FOREIGN KEY (id_cliente)
+        REFERENCES CLIENTE (id_cliente) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE PESSOA_JURIDICA (
@@ -36,14 +33,10 @@ CREATE TABLE PESSOA_JURIDICA (
     cnpj           CHAR(14)        NOT NULL,
     PRIMARY KEY (id_cliente),
     UNIQUE KEY uk_pj_cnpj (cnpj),
-    CONSTRAINT fk_pj_cliente
-        FOREIGN KEY (id_cliente) REFERENCES CLIENTE (id_cliente)
-        ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT fk_pj_cliente FOREIGN KEY (id_cliente)
+        REFERENCES CLIENTE (id_cliente) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- =====================================================================
--- 2) Dados do cliente
--- =====================================================================
 CREATE TABLE ENDERECO_CLIENTE (
     id_endereco_cliente BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     id_cliente          BIGINT UNSIGNED NOT NULL,
@@ -57,9 +50,8 @@ CREATE TABLE ENDERECO_CLIENTE (
     pais                VARCHAR(80)     NOT NULL DEFAULT 'Brasil',
     PRIMARY KEY (id_endereco_cliente),
     KEY idx_ec_cliente (id_cliente),
-    CONSTRAINT fk_ec_cliente
-        FOREIGN KEY (id_cliente) REFERENCES CLIENTE (id_cliente)
-        ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT fk_ec_cliente FOREIGN KEY (id_cliente)
+        REFERENCES CLIENTE (id_cliente) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE FORMA_PAGAMENTO (
@@ -67,19 +59,15 @@ CREATE TABLE FORMA_PAGAMENTO (
     id_cliente              BIGINT UNSIGNED NOT NULL,
     tipo_forma_pagamento    VARCHAR(30)     NOT NULL,
     titular                 VARCHAR(150),
-    validade                CHAR(7),        -- formato MM/AAAA
+    validade                CHAR(7),
     identificador_seguro    VARCHAR(50),
     ultimos_digitos         CHAR(4),
     PRIMARY KEY (id_forma_pagamento),
     KEY idx_fp_cliente (id_cliente),
-    CONSTRAINT fk_fp_cliente
-        FOREIGN KEY (id_cliente) REFERENCES CLIENTE (id_cliente)
-        ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT fk_fp_cliente FOREIGN KEY (id_cliente)
+        REFERENCES CLIENTE (id_cliente) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- =====================================================================
--- 3) PEDIDO e relacionamentos diretos
--- =====================================================================
 CREATE TABLE PEDIDO (
     id_pedido                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     id_cliente               BIGINT UNSIGNED NOT NULL,
@@ -89,12 +77,10 @@ CREATE TABLE PEDIDO (
     data_limite_devolucao    DATE,
     PRIMARY KEY (id_pedido),
     KEY idx_pedido_cliente (id_cliente),
-    CONSTRAINT fk_pedido_cliente
-        FOREIGN KEY (id_cliente) REFERENCES CLIENTE (id_cliente)
-        ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT fk_pedido_cliente FOREIGN KEY (id_cliente)
+        REFERENCES CLIENTE (id_cliente) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- PEDIDO (1) --- (1) ENDERECO_ENTREGA : UNIQUE em id_pedido garante 1:1
 CREATE TABLE ENDERECO_ENTREGA (
     id_endereco_entrega BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     id_pedido           BIGINT UNSIGNED NOT NULL,
@@ -108,14 +94,10 @@ CREATE TABLE ENDERECO_ENTREGA (
     pais                VARCHAR(80)     NOT NULL DEFAULT 'Brasil',
     PRIMARY KEY (id_endereco_entrega),
     UNIQUE KEY uk_ee_pedido (id_pedido),
-    CONSTRAINT fk_ee_pedido
-        FOREIGN KEY (id_pedido) REFERENCES PEDIDO (id_pedido)
-        ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT fk_ee_pedido FOREIGN KEY (id_pedido)
+        REFERENCES PEDIDO (id_pedido) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- =====================================================================
--- 4) Catálogo de produtos e fornecedores
--- =====================================================================
 CREATE TABLE PRODUTO (
     id_produto      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     sku             VARCHAR(50)     NOT NULL,
@@ -133,23 +115,17 @@ CREATE TABLE FORNECEDOR (
     PRIMARY KEY (id_fornecedor)
 ) ENGINE=InnoDB;
 
--- N:N entre PRODUTO e FORNECEDOR
 CREATE TABLE PRODUTO_FORNECEDOR (
     id_produto      BIGINT UNSIGNED NOT NULL,
     id_fornecedor   BIGINT UNSIGNED NOT NULL,
     PRIMARY KEY (id_produto, id_fornecedor),
     KEY idx_prodforn_fornecedor (id_fornecedor),
-    CONSTRAINT fk_prodforn_produto
-        FOREIGN KEY (id_produto) REFERENCES PRODUTO (id_produto)
-        ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_prodforn_fornecedor
-        FOREIGN KEY (id_fornecedor) REFERENCES FORNECEDOR (id_fornecedor)
-        ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT fk_prodforn_produto FOREIGN KEY (id_produto)
+        REFERENCES PRODUTO (id_produto) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_prodforn_fornecedor FOREIGN KEY (id_fornecedor)
+        REFERENCES FORNECEDOR (id_fornecedor) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- =====================================================================
--- 5) Itens do pedido
--- =====================================================================
 CREATE TABLE ITEM_PEDIDO (
     id_item_pedido           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     id_pedido                BIGINT UNSIGNED NOT NULL,
@@ -159,17 +135,12 @@ CREATE TABLE ITEM_PEDIDO (
     PRIMARY KEY (id_item_pedido),
     KEY idx_ip_pedido (id_pedido),
     KEY idx_ip_produto (id_produto),
-    CONSTRAINT fk_ip_pedido
-        FOREIGN KEY (id_pedido) REFERENCES PEDIDO (id_pedido)
-        ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_ip_produto
-        FOREIGN KEY (id_produto) REFERENCES PRODUTO (id_produto)
-        ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT fk_ip_pedido FOREIGN KEY (id_pedido)
+        REFERENCES PEDIDO (id_pedido) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_ip_produto FOREIGN KEY (id_produto)
+        REFERENCES PRODUTO (id_produto) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- =====================================================================
--- 6) Estoque
--- =====================================================================
 CREATE TABLE ESTOQUE (
     id_estoque      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     nome_local      VARCHAR(150)    NOT NULL,
@@ -183,17 +154,12 @@ CREATE TABLE PRODUTO_ESTOQUE (
     quantidade      INT UNSIGNED    NOT NULL DEFAULT 0,
     PRIMARY KEY (id_produto, id_estoque),
     KEY idx_prodest_estoque (id_estoque),
-    CONSTRAINT fk_prodest_produto
-        FOREIGN KEY (id_produto) REFERENCES PRODUTO (id_produto)
-        ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_prodest_estoque
-        FOREIGN KEY (id_estoque) REFERENCES ESTOQUE (id_estoque)
-        ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT fk_prodest_produto FOREIGN KEY (id_produto)
+        REFERENCES PRODUTO (id_produto) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_prodest_estoque FOREIGN KEY (id_estoque)
+        REFERENCES ESTOQUE (id_estoque) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
--- =====================================================================
--- 7) Pagamentos, entregas e devoluções
--- =====================================================================
 CREATE TABLE PAGAMENTO (
     id_pagamento         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     id_pedido            BIGINT UNSIGNED NOT NULL,
@@ -204,12 +170,10 @@ CREATE TABLE PAGAMENTO (
     PRIMARY KEY (id_pagamento),
     KEY idx_pag_pedido (id_pedido),
     KEY idx_pag_forma (id_forma_pagamento),
-    CONSTRAINT fk_pag_pedido
-        FOREIGN KEY (id_pedido) REFERENCES PEDIDO (id_pedido)
-        ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_pag_forma
-        FOREIGN KEY (id_forma_pagamento) REFERENCES FORMA_PAGAMENTO (id_forma_pagamento)
-        ON DELETE RESTRICT ON UPDATE CASCADE
+    CONSTRAINT fk_pag_pedido FOREIGN KEY (id_pedido)
+        REFERENCES PEDIDO (id_pedido) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_pag_forma FOREIGN KEY (id_forma_pagamento)
+        REFERENCES FORMA_PAGAMENTO (id_forma_pagamento) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE ENTREGA (
@@ -219,9 +183,8 @@ CREATE TABLE ENTREGA (
     codigo_rastreio VARCHAR(100),
     PRIMARY KEY (id_entrega),
     KEY idx_entrega_pedido (id_pedido),
-    CONSTRAINT fk_entrega_pedido
-        FOREIGN KEY (id_pedido) REFERENCES PEDIDO (id_pedido)
-        ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT fk_entrega_pedido FOREIGN KEY (id_pedido)
+        REFERENCES PEDIDO (id_pedido) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE DEVOLUCAO (
@@ -232,9 +195,8 @@ CREATE TABLE DEVOLUCAO (
     status_devolucao       VARCHAR(30)     NOT NULL,
     PRIMARY KEY (id_devolucao),
     KEY idx_dev_item (id_item_pedido),
-    CONSTRAINT fk_dev_item
-        FOREIGN KEY (id_item_pedido) REFERENCES ITEM_PEDIDO (id_item_pedido)
-        ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT fk_dev_item FOREIGN KEY (id_item_pedido)
+        REFERENCES ITEM_PEDIDO (id_item_pedido) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE ESTORNO (
@@ -246,32 +208,350 @@ CREATE TABLE ESTORNO (
     status_estorno   VARCHAR(30)     NOT NULL,
     PRIMARY KEY (id_estorno),
     KEY idx_estorno_pagamento (id_pagamento),
-    CONSTRAINT fk_estorno_pagamento
-        FOREIGN KEY (id_pagamento) REFERENCES PAGAMENTO (id_pagamento)
-        ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT fk_estorno_pagamento FOREIGN KEY (id_pagamento)
+        REFERENCES PAGAMENTO (id_pagamento) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
-
+-- Triggers originais (disjunção PF/PJ)
 DELIMITER $$
-
 CREATE TRIGGER trg_pf_disjunta_bi
-BEFORE INSERT ON PESSOA_FISICA
-FOR EACH ROW
+BEFORE INSERT ON PESSOA_FISICA FOR EACH ROW
 BEGIN
     IF EXISTS (SELECT 1 FROM PESSOA_JURIDICA WHERE id_cliente = NEW.id_cliente) THEN
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Cliente já classificado como PESSOA_JURIDICA (especialização disjunta).';
+            SET MESSAGE_TEXT = 'Cliente já classificado como PESSOA_JURIDICA.';
     END IF;
 END$$
-
 CREATE TRIGGER trg_pj_disjunta_bi
-BEFORE INSERT ON PESSOA_JURIDICA
-FOR EACH ROW
+BEFORE INSERT ON PESSOA_JURIDICA FOR EACH ROW
 BEGIN
     IF EXISTS (SELECT 1 FROM PESSOA_FISICA WHERE id_cliente = NEW.id_cliente) THEN
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Cliente já classificado como PESSOA_FISICA (especialização disjunta).';
+            SET MESSAGE_TEXT = 'Cliente já classificado como PESSOA_FISICA.';
     END IF;
 END$$
-
 DELIMITER ;
+
+-- =====================================================================
+-- PARTE A.1 — ÍNDICES ADICIONAIS (E-commerce)
+-- =====================================================================
+-- Todos em BTREE (padrão InnoDB). NÃO usamos HASH: InnoDB não suporta
+-- índice hash explícito; ele já usa adaptive hash internamente.
+-- ---------------------------------------------------------------------
+
+-- 1) PEDIDO: consultas filtram por status e período (dashboards)
+--    WHERE status_pedido = ? AND data_pedido >= ?
+--    Grupo (status, data) permite range scan eficiente.
+CREATE INDEX idx_pedido_status_data
+    ON PEDIDO (status_pedido, data_pedido) USING BTREE;
+
+-- 2) PAGAMENTO: conciliação financeira por status e mês
+--    WHERE status_pagamento = ? AND data_pagamento BETWEEN ? AND ?
+CREATE INDEX idx_pagamento_status_data
+    ON PAGAMENTO (status_pagamento, data_pagamento) USING BTREE;
+
+-- 3) PRODUTO: filtragem de catálogo por status + faixa de preço
+--    WHERE status_produto = ? AND preco_atual BETWEEN ? AND ?
+CREATE INDEX idx_produto_status_preco
+    ON PRODUTO (status_produto, preco_atual) USING BTREE;
+
+-- 4) CLIENTE: relatório de novos clientes por período
+--    WHERE data_cadastro >= ? (range scan puro)
+CREATE INDEX idx_cliente_data_cadastro
+    ON CLIENTE (data_cadastro) USING BTREE;
+
+-- 5) ENTREGA: monitoramento logístico por status
+--    WHERE status_entrega = ?
+CREATE INDEX idx_entrega_status
+    ON ENTREGA (status_entrega) USING BTREE;
+
+-- 6) DEVOLUCAO: gestão de devoluções por status e data
+--    WHERE status_devolucao = ? AND data_solicitacao >= ?
+CREATE INDEX idx_devolucao_status_data
+    ON DEVOLUCAO (status_devolucao, data_solicitacao) USING BTREE;
+
+-- 7) ESTORNO: fila de estornos pendentes
+--    WHERE status_estorno = ? (e relatórios por data)
+CREATE INDEX idx_estorno_status_data
+    ON ESTORNO (status_estorno, data_estorno) USING BTREE;
+
+-- 8) PRODUTO (FULLTEXT): busca textual por nome/descrição.
+--    LIKE '%termo%' seria full scan; MATCH ... AGAINST usa índice
+--    invertido (inverted index) do FULLTEXT.
+CREATE FULLTEXT INDEX ft_produto_nome_desc
+    ON PRODUTO (nome, descricao);
+
+-- =====================================================================
+-- PARTE A.2 — QUERIES (E-commerce) — justificam cada índice
+-- =====================================================================
+
+-- Q1: Pedidos pendentes do último mês  --> idx_pedido_status_data
+SELECT id_pedido, data_pedido, status_pedido
+FROM PEDIDO
+WHERE status_pedido = 'PENDENTE'
+  AND data_pedido >= DATE_SUB(CURDATE(), INTERVAL 30 DAY);
+
+-- Q2: Total pago por mês (conciliacão) --> idx_pagamento_status_data
+SELECT DATE_FORMAT(data_pagamento, '%Y-%m') AS mes,
+       SUM(valor)                           AS total
+FROM PAGAMENTO
+WHERE status_pagamento = 'APROVADO'
+GROUP BY mes
+ORDER BY mes;
+
+-- Q3: Produtos ativos em faixa de preço --> idx_produto_status_preco
+SELECT id_produto, sku, nome, preco_atual
+FROM PRODUTO
+WHERE status_produto = 'ATIVO'
+  AND preco_atual BETWEEN 50.00 AND 500.00
+ORDER BY preco_atual;
+
+-- Q4: Novos clientes por mês --> idx_cliente_data_cadastro
+SELECT DATE_FORMAT(data_cadastro, '%Y-%m') AS mes,
+       COUNT(*)                            AS qtd
+FROM CLIENTE
+GROUP BY mes
+ORDER BY mes;
+
+-- Q5: Entregas em trânsito --> idx_entrega_status
+SELECT id_entrega, id_pedido, codigo_rastreio
+FROM ENTREGA
+WHERE status_entrega = 'EM_TRANSITO';
+
+-- Q6: Devoluções abertas nos últimos 7 dias --> idx_devolucao_status_data
+SELECT id_devolucao, id_item_pedido, data_solicitacao
+FROM DEVOLUCAO
+WHERE status_devolucao = 'SOLICITADA'
+  AND data_solicitacao >= DATE_SUB(CURDATE(), INTERVAL 7 DAY);
+
+-- Q7: Estornos pendentes --> idx_estorno_status_data
+SELECT id_estorno, id_pagamento, valor_estornado
+FROM ESTORNO
+WHERE status_estorno = 'PENDENTE';
+
+-- Q8: Busca textual por produto --> ft_produto_nome_desc
+SELECT id_produto, sku, nome
+FROM PRODUTO
+WHERE MATCH(nome, descricao) AGAINST ('notebook' IN NATURAL LANGUAGE MODE);
+
+-- =====================================================================
+-- PARTE A.3 — PROCEDURE (E-commerce) com variável de controle
+-- =====================================================================
+-- Ações:  1 = INSERT | 2 = UPDATE | 3 = DELETE | 4 = SELECT
+-- Qualquer outro valor dispara SIGNAL (rollback).
+-- =====================================================================
+DROP PROCEDURE IF EXISTS sp_manipular_produto;
+
+DELIMITER $$
+CREATE PROCEDURE sp_manipular_produto(
+    IN p_acao            INT,              -- variável de controle
+    IN p_id_produto      BIGINT UNSIGNED,  -- usado em UPDATE/DELETE/SELECT
+    IN p_sku             VARCHAR(50),
+    IN p_nome            VARCHAR(200),
+    IN p_descricao       TEXT,
+    IN p_preco_atual     DECIMAL(12,2),
+    IN p_status_produto  VARCHAR(30)
+)
+BEGIN
+    CASE p_acao
+        WHEN 1 THEN
+            INSERT INTO PRODUTO (sku, nome, descricao, preco_atual, status_produto)
+            VALUES (p_sku, p_nome, p_descricao, p_preco_atual, p_status_produto);
+            SELECT LAST_INSERT_ID() AS id_gerado, 'PRODUTO inserido' AS msg;
+
+        WHEN 2 THEN
+            UPDATE PRODUTO
+               SET sku            = COALESCE(p_sku,            sku),
+                   nome           = COALESCE(p_nome,           nome),
+                   descricao      = COALESCE(p_descricao,      descricao),
+                   preco_atual    = COALESCE(p_preco_atual,    preco_atual),
+                   status_produto = COALESCE(p_status_produto, status_produto)
+             WHERE id_produto = p_id_produto;
+            SELECT ROW_COUNT() AS linhas_afetadas, 'PRODUTO atualizado' AS msg;
+
+        WHEN 3 THEN
+            DELETE FROM PRODUTO WHERE id_produto = p_id_produto;
+            SELECT ROW_COUNT() AS linhas_afetadas, 'PRODUTO removido' AS msg;
+
+        WHEN 4 THEN
+            SELECT * FROM PRODUTO WHERE id_produto = p_id_produto;
+
+        ELSE
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT =
+                'Ação inválida. Use 1=INSERT, 2=UPDATE, 3=DELETE, 4=SELECT.';
+    END CASE;
+END$$
+DELIMITER ;
+
+-- ---------- Chamadas de exemplo (E-commerce) ----------
+CALL sp_manipular_produto(1, NULL, 'SKU-1001', 'Notebook X', 'Notebook 16GB',  3500.00, 'ATIVO');
+CALL sp_manipular_produto(1, NULL, 'SKU-1002', 'Mouse Y',    'Mouse óptico',     79.90, 'ATIVO');
+CALL sp_manipular_produto(2, 1,   NULL,       'Notebook X Pro', NULL,          3999.90, NULL);
+CALL sp_manipular_produto(4, 1,   NULL,       NULL,           NULL,           NULL,    NULL);
+CALL sp_manipular_produto(3, 2,   NULL,       NULL,           NULL,           NULL,    NULL);
+
+
+-- =====================================================================
+-- PARTE B — COMPANY / UNIVERSIDADE
+-- =====================================================================
+CREATE DATABASE IF NOT EXISTS universidade
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_0900_ai_ci;
+USE universidade;
+
+-- ---------- Tabelas ----------
+CREATE TABLE CIDADE (
+    id_cidade  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    nome       VARCHAR(150)    NOT NULL,
+    uf         CHAR(2)         NOT NULL,
+    PRIMARY KEY (id_cidade)
+) ENGINE=InnoDB;
+
+CREATE TABLE DEPARTAMENTO (
+    id_departamento BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    nome            VARCHAR(150)    NOT NULL,
+    id_cidade       BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (id_departamento),
+    CONSTRAINT fk_dept_cidade FOREIGN KEY (id_cidade)
+        REFERENCES CIDADE (id_cidade) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE EMPREGADO (
+    id_empregado     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    nome             VARCHAR(200)    NOT NULL,
+    cpf              CHAR(11)        NOT NULL,
+    salario          DECIMAL(12,2)   NOT NULL,
+    data_admissao    DATE            NOT NULL,
+    id_departamento  BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (id_empregado),
+    UNIQUE KEY uk_emp_cpf (cpf),
+    CONSTRAINT fk_emp_dept FOREIGN KEY (id_departamento)
+        REFERENCES DEPARTAMENTO (id_departamento)
+        ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- =====================================================================
+-- PARTE B.1 — ÍNDICES (Company / Universidade)
+-- =====================================================================
+-- Justificativa (todos BTREE, InnoDB):
+
+-- 1) EMPREGADO.id_departamento:
+--    usado em GROUP BY / JOIN para "departamento com mais pessoas"
+--    e "empregados por departamento". FK sozinha NÃO cria índice
+--    no InnoDB (só gera constraint); criamos explicitamente.
+CREATE INDEX idx_emp_departamento
+    ON EMPREGADO (id_departamento) USING BTREE;
+
+-- 2) DEPARTAMENTO.id_cidade:
+--    usado no JOIN para "departamentos por cidade".
+CREATE INDEX idx_dept_cidade
+    ON DEPARTAMENTO (id_cidade) USING BTREE;
+
+-- 3) EMPREGADO.nome: buscas e ordenações alfabéticas frequentes.
+CREATE INDEX idx_emp_nome
+    ON EMPREGADO (nome) USING BTREE;
+
+-- 4) CIDADE.nome: filtros por cidade e ordenação em relatórios.
+CREATE INDEX idx_cidade_nome
+    ON CIDADE (nome) USING BTREE;
+
+-- =====================================================================
+-- PARTE B.2 — QUERIES (Company / Universidade)
+-- =====================================================================
+
+-- Q1: Departamento com maior número de pessoas
+--     Usa idx_emp_departamento (GROUP BY + JOIN)
+SELECT d.id_departamento,
+       d.nome,
+       COUNT(e.id_empregado) AS total_empregados
+FROM DEPARTAMENTO d
+LEFT JOIN EMPREGADO e ON e.id_departamento = d.id_departamento
+GROUP BY d.id_departamento, d.nome
+ORDER BY total_empregados DESC
+LIMIT 1;
+
+-- Q2: Departamentos por cidade
+--     Usa idx_dept_cidade e idx_cidade_nome
+SELECT c.nome AS cidade,
+       c.uf,
+       d.nome AS departamento
+FROM CIDADE c
+INNER JOIN DEPARTAMENTO d ON d.id_cidade = c.id_cidade
+ORDER BY c.nome, d.nome;
+
+-- Q3: Relação de empregados por departamento
+--     Usa idx_emp_departamento (JOIN) + idx_emp_nome (ORDER BY)
+SELECT d.nome AS departamento,
+       e.nome AS empregado
+FROM DEPARTAMENTO d
+INNER JOIN EMPREGADO e ON e.id_departamento = d.id_departamento
+ORDER BY d.nome, e.nome;
+
+-- =====================================================================
+-- PARTE B.3 — PROCEDURE (Company / Universidade)
+-- =====================================================================
+DROP PROCEDURE IF EXISTS sp_manipular_empregado;
+
+DELIMITER $$
+CREATE PROCEDURE sp_manipular_empregado(
+    IN p_acao             INT,              -- variável de controle
+    IN p_id_empregado     BIGINT UNSIGNED,  -- UPDATE/DELETE/SELECT
+    IN p_nome             VARCHAR(200),
+    IN p_cpf              CHAR(11),
+    IN p_salario          DECIMAL(12,2),
+    IN p_data_admissao    DATE,
+    IN p_id_departamento  BIGINT UNSIGNED
+)
+BEGIN
+    CASE p_acao
+        WHEN 1 THEN
+            INSERT INTO EMPREGADO (nome, cpf, salario, data_admissao, id_departamento)
+            VALUES (p_nome, p_cpf, p_salario, p_data_admissao, p_id_departamento);
+            SELECT LAST_INSERT_ID() AS id_gerado, 'EMPREGADO inserido' AS msg;
+
+        WHEN 2 THEN
+            UPDATE EMPREGADO
+               SET nome            = COALESCE(p_nome,            nome),
+                   cpf             = COALESCE(p_cpf,             cpf),
+                   salario         = COALESCE(p_salario,         salario),
+                   data_admissao   = COALESCE(p_data_admissao,   data_admissao),
+                   id_departamento = COALESCE(p_id_departamento, id_departamento)
+             WHERE id_empregado = p_id_empregado;
+            SELECT ROW_COUNT() AS linhas_afetadas, 'EMPREGADO atualizado' AS msg;
+
+        WHEN 3 THEN
+            DELETE FROM EMPREGADO WHERE id_empregado = p_id_empregado;
+            SELECT ROW_COUNT() AS linhas_afetadas, 'EMPREGADO removido' AS msg;
+
+        WHEN 4 THEN
+            SELECT * FROM EMPREGADO WHERE id_empregado = p_id_empregado;
+
+        ELSE
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT =
+                'Ação inválida. Use 1=INSERT, 2=UPDATE, 3=DELETE, 4=SELECT.';
+    END CASE;
+END$$
+DELIMITER ;
+
+-- ---------- Carga inicial e chamadas de exemplo (Universidade) ----------
+INSERT INTO CIDADE (nome, uf) VALUES
+    ('São Paulo',      'SP'),
+    ('Rio de Janeiro', 'RJ'),
+    ('Belo Horizonte', 'MG');
+
+INSERT INTO DEPARTAMENTO (nome, id_cidade) VALUES
+    ('Tecnologia', 1),
+    ('Recursos Humanos', 2),
+    ('Financeiro', 1),
+    ('Comercial', 3);
+
+CALL sp_manipular_empregado(1, NULL, 'João Silva',    '11111111111', 5000.00, '2023-01-15', 1);
+CALL sp_manipular_empregado(1, NULL, 'Maria Souza',   '22222222222', 6200.00, '2022-08-10', 1);
+CALL sp_manipular_empregado(1, NULL, 'Pedro Santos',  '33333333333', 4500.00, '2024-03-01', 2);
+CALL sp_manipular_empregado(1, NULL, 'Ana Oliveira',  '44444444444', 7800.00, '2021-05-20', 3);
+
+CALL sp_manipular_empregado(2, 3, 'Pedro S. Santos',  NULL, 4800.00, NULL, NULL);
+CALL sp_manipular_empregado(4, 3, NULL, NULL, NULL, NULL, NULL);
+CALL sp_manipular_empregado(3, 3, NULL, NULL, NULL, NULL, NULL);
