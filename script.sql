@@ -555,3 +555,342 @@ CALL sp_manipular_empregado(1, NULL, 'Ana Oliveira',  '44444444444', 7800.00, '2
 CALL sp_manipular_empregado(2, 3, 'Pedro S. Santos',  NULL, 4800.00, NULL, NULL);
 CALL sp_manipular_empregado(4, 3, NULL, NULL, NULL, NULL, NULL);
 CALL sp_manipular_empregado(3, 3, NULL, NULL, NULL, NULL, NULL);
+
+-- =====================================================================
+-- PARTE C — EXTENSÕES NO SCHEMA universidade
+-- (necessárias para viabilizar as views da Parte 1)
+-- =====================================================================
+USE universidade;
+
+-- C.1) Gerente do departamento (auto-relacionamento DEPARTAMENTO ↔ EMPREGADO)
+ALTER TABLE DEPARTAMENTO
+    ADD COLUMN id_gerente BIGINT UNSIGNED NULL,
+    ADD CONSTRAINT fk_dept_gerente FOREIGN KEY (id_gerente)
+        REFERENCES EMPREGADO (id_empregado)
+        ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- C.2) Projetos (cada projeto pertence a um departamento)
+CREATE TABLE PROJETO (
+    id_projeto      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    nome            VARCHAR(200)    NOT NULL,
+    id_departamento BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (id_projeto),
+    KEY idx_projeto_dept (id_departamento),
+    CONSTRAINT fk_projeto_dept FOREIGN KEY (id_departamento)
+        REFERENCES DEPARTAMENTO (id_departamento)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- C.3) Alocação N:N de empregados em projetos
+CREATE TABLE PROJETO_EMPREGADO (
+    id_projeto      BIGINT UNSIGNED NOT NULL,
+    id_empregado    BIGINT UNSIGNED NOT NULL,
+    horas_alocadas  INT UNSIGNED    NOT NULL DEFAULT 0,
+    PRIMARY KEY (id_projeto, id_empregado),
+    KEY idx_pe_empregado (id_empregado),
+    CONSTRAINT fk_pe_projeto FOREIGN KEY (id_projeto)
+        REFERENCES PROJETO (id_projeto) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_pe_empregado FOREIGN KEY (id_empregado)
+        REFERENCES EMPREGADO (id_empregado) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- C.4) Dependentes de empregados
+CREATE TABLE DEPENDENTE (
+    id_dependente   BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    id_empregado    BIGINT UNSIGNED NOT NULL,
+    nome            VARCHAR(200)    NOT NULL,
+    parentesco      VARCHAR(50),
+    data_nascimento DATE,
+    PRIMARY KEY (id_dependente),
+    KEY idx_dep_empregado (id_empregado),
+    CONSTRAINT fk_dep_empregado FOREIGN KEY (id_empregado)
+        REFERENCES EMPREGADO (id_empregado) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+-- C.5) Histórico de salários (log para triggers da Parte 2)
+CREATE TABLE HISTORICO_SALARIO (
+    id_historico     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    id_empregado     BIGINT UNSIGNED NOT NULL,
+    nome_empregado   VARCHAR(200),
+    salario_anterior DECIMAL(12,2),
+    salario_novo     DECIMAL(12,2),
+    tipo_evento      ENUM('INSERT','UPDATE') NOT NULL,
+    data_evento      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id_historico),
+    KEY idx_hist_empregado (id_empregado)
+) ENGINE=InnoDB;
+
+-- C.6) Carga complementar de dados para as views
+--      (IDs dos empregados já existentes: 1=João, 2=Maria, 4=Ana)
+INSERT INTO EMPREGADO (nome, cpf, salario, data_admissao, id_departamento) VALUES
+    ('Carlos Pereira', '55555555555', 5500.00, '2020-07-01', 1),   -- id 5
+    ('Beatriz Lima',   '66666666666', 4900.00, '2022-11-15', 2),   -- id 6
+    ('Diego Alves',    '77777777777', 7000.00, '2019-02-10', 3),   -- id 7
+    ('Eduarda Rocha',  '88888888888', 8100.00, '2021-10-05', 4);   -- id 8
+
+UPDATE DEPARTAMENTO SET id_gerente = 2 WHERE id_departamento = 1;  -- Tecnologia  → Maria
+UPDATE DEPARTAMENTO SET id_gerente = 6 WHERE id_departamento = 2;  -- RH          → Beatriz
+UPDATE DEPARTAMENTO SET id_gerente = 4 WHERE id_departamento = 3;  -- Financeiro  → Ana
+UPDATE DEPARTAMENTO SET id_gerente = 8 WHERE id_departamento = 4;  -- Comercial   → Eduarda
+
+INSERT INTO PROJETO (nome, id_departamento) VALUES
+    ('Migração ERP',        1),
+    ('Portal do Cliente',   1),
+    ('Reestruturação RH',   2),
+    ('Auditoria 2024',      3),
+    ('Campanha Vendas Q1',  4);
+
+INSERT INTO PROJETO_EMPREGADO (id_projeto, id_empregado, horas_alocadas) VALUES
+    (1, 1, 100), (1, 2,  80), (1, 5,  50),
+    (2, 1,  60), (2, 5,  40),
+    (3, 6, 120),
+    (4, 4, 200), (4, 7,  90),
+    (5, 8, 150), (5, 7,  40);
+
+INSERT INTO DEPENDENTE (id_empregado, nome, parentesco, data_nascimento) VALUES
+    (1, 'Lucas Silva',   'Filho',   '2015-06-01'),
+    (1, 'Carla Silva',   'Cônjuge', '1985-02-14'),
+    (2, 'Mariana Souza', 'Filha',   '2018-11-20'),
+    (4, 'Rosa Oliveira', 'Mãe',     '1950-03-10'),
+    (5, 'Pedro Pereira', 'Filho',   '2010-09-25'),
+    (8, 'Tiago Rocha',   'Filho',   '2012-04-18');
+
+
+-- =====================================================================
+-- PARTE D — VIEWS (Parte 1: Personalizando acessos com views)
+-- =====================================================================
+USE universidade;
+
+-- D.1) Número de empregados por departamento e localidade
+CREATE OR REPLACE VIEW vw_empregados_por_departamento_localidade AS
+SELECT d.id_departamento,
+       d.nome                AS departamento,
+       c.nome                AS cidade,
+       c.uf,
+       COUNT(e.id_empregado) AS total_empregados
+FROM DEPARTAMENTO d
+INNER JOIN CIDADE c   ON c.id_cidade       = d.id_cidade
+LEFT  JOIN EMPREGADO e ON e.id_departamento = d.id_departamento
+GROUP BY d.id_departamento, d.nome, c.nome, c.uf;
+
+-- D.2) Lista de departamentos e seus gerentes
+CREATE OR REPLACE VIEW vw_departamentos_gerentes AS
+SELECT d.id_departamento,
+       d.nome             AS departamento,
+       c.nome             AS cidade,
+       c.uf,
+       g.id_empregado     AS id_gerente,
+       g.nome             AS gerente
+FROM DEPARTAMENTO d
+INNER JOIN CIDADE c   ON c.id_cidade     = d.id_cidade
+LEFT  JOIN EMPREGADO g ON g.id_empregado = d.id_gerente;
+
+-- D.3) Projetos com maior número de empregados (ordenação desc)
+CREATE OR REPLACE VIEW vw_projetos_mais_empregados AS
+SELECT p.id_projeto,
+       p.nome                 AS projeto,
+       d.nome                 AS departamento,
+       COUNT(pe.id_empregado) AS total_empregados
+FROM PROJETO p
+INNER JOIN DEPARTAMENTO d       ON d.id_departamento = p.id_departamento
+LEFT  JOIN PROJETO_EMPREGADO pe ON pe.id_projeto      = p.id_projeto
+GROUP BY p.id_projeto, p.nome, d.nome
+ORDER BY total_empregados DESC;
+
+-- D.4) Lista de projetos, departamentos e gerentes
+CREATE OR REPLACE VIEW vw_projetos_departamentos_gerentes AS
+SELECT p.id_projeto,
+       p.nome      AS projeto,
+       d.nome      AS departamento,
+       c.nome      AS cidade,
+       c.uf,
+       g.nome      AS gerente
+FROM PROJETO p
+INNER JOIN DEPARTAMENTO d ON d.id_departamento = p.id_departamento
+INNER JOIN CIDADE c       ON c.id_cidade        = d.id_cidade
+LEFT  JOIN EMPREGADO g    ON g.id_empregado     = d.id_gerente;
+
+-- D.5) Quais empregados possuem dependentes e se são gerentes
+CREATE OR REPLACE VIEW vw_empregados_dependentes_gerentes AS
+SELECT e.id_empregado,
+       e.nome           AS empregado,
+       (SELECT COUNT(*)
+          FROM DEPENDENTE dep
+         WHERE dep.id_empregado = e.id_empregado)                       AS qtd_dependentes,
+       CASE WHEN EXISTS (SELECT 1
+                          FROM DEPARTAMENTO d
+                         WHERE d.id_gerente = e.id_empregado)
+            THEN 'SIM' ELSE 'NÃO' END                                    AS eh_gerente
+FROM EMPREGADO e;
+
+-- D.5b) Versão reduzida (SEM departamento / gerente) → usada pelo EMPREGADO
+CREATE OR REPLACE VIEW vw_empregados_dependentes AS
+SELECT e.id_empregado,
+       e.nome           AS empregado,
+       (SELECT COUNT(*)
+          FROM DEPENDENTE dep
+         WHERE dep.id_empregado = e.id_empregado) AS qtd_dependentes
+FROM EMPREGADO e;
+
+
+-- =====================================================================
+-- PARTE E — PERMISSÕES DE ACESSO ÀS VIEWS
+-- =====================================================================
+USE universidade;
+
+-- Contas de usuário (troque as senhas antes de produção!)
+CREATE USER IF NOT EXISTS 'gerente_user'@'localhost'   IDENTIFIED BY 'Gerente@2024';
+CREATE USER IF NOT EXISTS 'empregado_user'@'localhost' IDENTIFIED BY 'Empregado@2024';
+
+-- GERENTE: acesso a TODAS as views (contém dados de depto/gerente/projetos)
+GRANT SELECT ON universidade.vw_empregados_por_departamento_localidade TO 'gerente_user'@'localhost';
+GRANT SELECT ON universidade.vw_departamentos_gerentes                TO 'gerente_user'@'localhost';
+GRANT SELECT ON universidade.vw_projetos_mais_empregados              TO 'gerente_user'@'localhost';
+GRANT SELECT ON universidade.vw_projetos_departamentos_gerentes       TO 'gerente_user'@'localhost';
+GRANT SELECT ON universidade.vw_empregados_dependentes_gerentes       TO 'gerente_user'@'localhost';
+
+-- EMPREGADO: acesso SOMENTE à view reduzida (sem depto e sem gerente)
+GRANT SELECT ON universidade.vw_empregados_dependentes                TO 'empregado_user'@'localhost';
+
+FLUSH PRIVILEGES;
+
+
+-- =====================================================================
+-- PARTE F — TRIGGERS DE E-COMMERCE (Parte 2)
+-- =====================================================================
+USE loja;
+
+-- F.1) Tabela de auditoria dos clientes excluídos
+CREATE TABLE CLIENTE_EXCLUIDO (
+    id_exclusao         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    id_cliente_original BIGINT UNSIGNED NOT NULL,
+    email               VARCHAR(255),
+    telefone            VARCHAR(20),
+    data_cadastro       DATE,
+    tipo_pessoa         ENUM('PF','PJ','NAO_CLASSIFICADO') NOT NULL DEFAULT 'NAO_CLASSIFICADO',
+    nome_completo       VARCHAR(200),
+    cpf                 CHAR(11),
+    razao_social        VARCHAR(200),
+    nome_fantasia       VARCHAR(200),
+    cnpj                CHAR(14),
+    data_exclusao       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id_exclusao),
+    KEY idx_ce_cliente (id_cliente_original)
+) ENGINE=InnoDB;
+
+-- F.2) BEFORE DELETE em CLIENTE
+--      Copia dados do cliente + dados de PF/PJ antes do CASCADE remover tudo.
+DROP TRIGGER IF EXISTS trg_cliente_before_delete;
+DELIMITER $$
+CREATE TRIGGER trg_cliente_before_delete
+BEFORE DELETE ON CLIENTE FOR EACH ROW
+BEGIN
+    DECLARE v_tipo     VARCHAR(20)  DEFAULT 'NAO_CLASSIFICADO';
+    DECLARE v_nome     VARCHAR(200) DEFAULT NULL;
+    DECLARE v_cpf      CHAR(11)     DEFAULT NULL;
+    DECLARE v_razao    VARCHAR(200) DEFAULT NULL;
+    DECLARE v_fantasia VARCHAR(200) DEFAULT NULL;
+    DECLARE v_cnpj     CHAR(14)     DEFAULT NULL;
+
+    IF EXISTS (SELECT 1 FROM PESSOA_FISICA WHERE id_cliente = OLD.id_cliente) THEN
+        SELECT nome_completo, cpf
+          INTO v_nome, v_cpf
+          FROM PESSOA_FISICA
+         WHERE id_cliente = OLD.id_cliente;
+        SET v_tipo = 'PF';
+
+    ELSEIF EXISTS (SELECT 1 FROM PESSOA_JURIDICA WHERE id_cliente = OLD.id_cliente) THEN
+        SELECT razao_social, nome_fantasia, cnpj
+          INTO v_razao, v_fantasia, v_cnpj
+          FROM PESSOA_JURIDICA
+         WHERE id_cliente = OLD.id_cliente;
+        SET v_tipo = 'PJ';
+    END IF;
+
+    INSERT INTO CLIENTE_EXCLUIDO
+        (id_cliente_original, email, telefone, data_cadastro,
+         tipo_pessoa, nome_completo, cpf, razao_social, nome_fantasia, cnpj)
+    VALUES
+        (OLD.id_cliente, OLD.email, OLD.telefone, OLD.data_cadastro,
+         v_tipo, v_nome, v_cpf, v_razao, v_fantasia, v_cnpj);
+END$$
+DELIMITER ;
+
+
+-- =====================================================================
+-- PARTE G — TRIGGERS DE COLABORADORES (universidade)
+--   "Inserção de novos colaboradores e atualização do salário base"
+-- =====================================================================
+USE universidade;
+
+-- G.1) BEFORE INSERT — valida salário e registra a contratação
+DROP TRIGGER IF EXISTS trg_empregado_before_insert;
+DELIMITER $$
+CREATE TRIGGER trg_empregado_before_insert
+BEFORE INSERT ON EMPREGADO FOR EACH ROW
+BEGIN
+    IF NEW.salario IS NULL OR NEW.salario <= 0 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Salário base deve ser maior que zero.';
+    END IF;
+END$$
+DELIMITER ;
+
+-- G.2) AFTER INSERT — grava o evento de contratação
+DROP TRIGGER IF EXISTS trg_empregado_after_insert;
+DELIMITER $$
+CREATE TRIGGER trg_empregado_after_insert
+AFTER INSERT ON EMPREGADO FOR EACH ROW
+BEGIN
+    INSERT INTO HISTORICO_SALARIO
+        (id_empregado, nome_empregado, salario_anterior, salario_novo, tipo_evento)
+    VALUES
+        (NEW.id_empregado, NEW.nome, NULL, NEW.salario, 'INSERT');
+END$$
+DELIMITER ;
+
+-- G.3) BEFORE UPDATE — valida e registra alteração de salário
+DROP TRIGGER IF EXISTS trg_empregado_before_update;
+DELIMITER $$
+CREATE TRIGGER trg_empregado_before_update
+BEFORE UPDATE ON EMPREGADO FOR EACH ROW
+BEGIN
+    IF NEW.salario IS NULL OR NEW.salario <= 0 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Salário base deve ser maior que zero.';
+    END IF;
+
+    IF NEW.salario <> OLD.salario THEN
+        INSERT INTO HISTORICO_SALARIO
+            (id_empregado, nome_empregado, salario_anterior, salario_novo, tipo_evento)
+        VALUES
+            (OLD.id_empregado, OLD.nome, OLD.salario, NEW.salario, 'UPDATE');
+    END IF;
+END$$
+DELIMITER ;
+
+
+-- =====================================================================
+-- PARTE H — TESTES RÁPIDOS (opcional)
+-- =====================================================================
+-- ---------- Views (universidade) ----------
+SELECT * FROM vw_empregados_por_departamento_localidade;
+SELECT * FROM vw_departamentos_gerentes;
+SELECT * FROM vw_projetos_mais_empregados;
+SELECT * FROM vw_projetos_departamentos_gerentes;
+SELECT * FROM vw_empregados_dependentes_gerentes;
+SELECT * FROM vw_empregados_dependentes;
+
+-- ---------- Trigger BEFORE DELETE (loja) ----------
+USE loja;
+INSERT INTO CLIENTE (email, telefone, data_cadastro)
+     VALUES ('teste.exclusao@exemplo.com', '11999999999', CURDATE());
+INSERT INTO PESSOA_FISICA (id_cliente, nome_completo, cpf)
+     VALUES (LAST_INSERT_ID(), 'Cliente Excluído Teste', '99988877766');
+DELETE FROM CLIENTE WHERE email = 'teste.exclusao@exemplo.com';
+SELECT * FROM CLIENTE_EXCLUIDO;
+
+-- ---------- Triggers de colaboradores (universidade) ----------
+USE universidade;
+UPDATE EMPREGADO SET salario = 5500.00 WHERE id_empregado = 1;
+SELECT * FROM HISTORICO_SALARIO ORDER BY id_historico;
