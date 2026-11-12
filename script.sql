@@ -338,7 +338,7 @@ WHERE MATCH(nome, descricao) AGAINST ('notebook' IN NATURAL LANGUAGE MODE);
 -- PARTE A.3 — PROCEDURE (E-commerce) com variável de controle
 -- =====================================================================
 -- Ações:  1 = INSERT | 2 = UPDATE | 3 = DELETE | 4 = SELECT
--- Qualquer outro valor dispara SIGNAL (rollback).
+-- Qualquer outro valor dispara SIGNAL; o chamador deve tratar a transação.
 -- =====================================================================
 DROP PROCEDURE IF EXISTS sp_manipular_produto;
 
